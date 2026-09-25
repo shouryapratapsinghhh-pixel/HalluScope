@@ -1,0 +1,8 @@
+numpy
+pandas
+scikit-learn
+torch
+transformers
+pyyaml
+pytest>=8.0
+ruff>=0.9,<1.0

@@ -25,8 +25,8 @@ def _fake_transfer(root, name, aurocs):
     d = root / name
     d.mkdir()
     # layer 1 has the best QA validation -> it is the headline, not layer 2's higher transfer
-    pd.DataFrame({"layer": [1, 2], "qa_val_auroc": [0.9, 0.6],
-                  "transfer_auroc": aurocs}).to_csv(d / "transfer.csv", index=False)
+    pd.DataFrame({"layer": [1, 2, 3], "qa_val_auroc": [0.9, 0.6, 0.5],
+                  "transfer_auroc": aurocs + [0.05]}).to_csv(d / "transfer.csv", index=False)
     return str(d)
 
 
@@ -36,7 +36,7 @@ def test_build_uses_saved_numbers_and_qa_chosen_layer(tmp_path):
     md = build(cfg, out_dir=tmp_path / "out", figure=tmp_path / "scale.png")
     assert "+0.123 (5/5) ✅" in md
     assert "25.0%" in md  # accuracy read from the cache
-    assert "| cities | 0.700 | 0.990 |" in md  # headline = QA-chosen layer, best-any is descriptive
+    assert "| cities | 0.700 | 0.990 | L3 = 0.050 |" in md  # QA-chosen headline; best + worst descriptive
     assert (tmp_path / "scale.png").stat().st_size > 0
     assert (tmp_path / "out" / "scale_table.csv").exists()
 
@@ -54,3 +54,29 @@ def test_inject_readme_appends_when_no_markers(tmp_path):
     readme.write_text("# Title\n")
     inject_readme(readme, f"{START}\nx\n{END}")
     assert START in readme.read_text()
+
+
+def _fake_cost(root):
+    d = root / "sc"
+    d.mkdir()
+    pd.DataFrame({"method": ["probe (prompt only)", "neg_min_logprob (greedy answer)",
+                             "self-consistency (greedy + 10 samples)"],
+                  "auroc": [0.80, 0.78, 0.75], "ci_low": [0.76, 0.74, 0.70], "ci_high": [0.84, 0.82, 0.79],
+                  "forward_steps": [1.0, 7.5, 68.0], "ms_per_question": [99, 431, 3660],
+                  "cost_vs_probe": [1.0, 7.5, 68.0]}).to_csv(d / "cost_vs_accuracy.csv", index=False)
+    (d / "diffs.json").write_text(
+        '{"probe - self_consistency": {"diff": 0.05, "ci_low": -0.003, "ci_high": 0.103}}')
+    return {"name": "bench", "dir": str(d)}
+
+
+def test_cost_section_and_key_findings_are_generated(tmp_path):
+    cfg = {"models": [_fake_model(tmp_path, "m1", 0.123), _fake_model(tmp_path, "m2", 0.2)],
+           "transfer": [{"name": "Negated city facts", "dirs": [_fake_transfer(tmp_path, "neg", [0.5, 0.6])]}],
+           "cost": _fake_cost(tmp_path)}
+    md = build(cfg, out_dir=tmp_path / "out", figure=tmp_path / "scale.png")
+    assert "### Key findings" in md and "### Cost: probe vs self-consistency" in md
+    assert "+0.12 to +0.20" in md  # range computed from the two models
+    assert "68× fewer" in md  # 68.0 / 1.0 forward passes
+    assert "matched (difference not significant)" in md  # wording follows the CI
+    assert "layer 3 inverts to 0.050" in md  # most-inverted layer surfaced
+    assert "(not significant)" in md  # CI [-0.003, +0.103] includes 0

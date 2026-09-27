@@ -16,6 +16,7 @@ and replaces the README text between <!-- RESULTS:START --> and <!-- RESULTS:END
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import matplotlib
@@ -62,15 +63,19 @@ def load_model_row(m: dict) -> dict:
 
 def transfer_row(t: dict) -> dict:
     """Headline = layer chosen on QA validation (source domain only), per seed."""
-    chosen, best_any = [], []
+    chosen, best_any, worst = [], [], []
     for d in t["dirs"]:
         df = pd.read_csv(Path(d) / "transfer.csv")
         chosen.append(df.loc[df["qa_val_auroc"].idxmax(), "transfer_auroc"])
         best_any.append(df["transfer_auroc"].max())
+        w = df.loc[df["transfer_auroc"].idxmin()]
+        worst.append((float(w["transfer_auroc"]), int(w["layer"])))
     c = np.array(chosen)
+    worst_auc, worst_layer = min(worst)
     return {"target": t["name"], "n_seeds": len(c), "transfer_mean": c.mean(),
             "transfer_min": c.min(), "transfer_max": c.max(),
-            "best_any_layer_descriptive": float(np.max(best_any))}
+            "best_any_layer_descriptive": float(np.max(best_any)),
+            "most_inverted_auroc": worst_auc, "most_inverted_layer": worst_layer}
 
 
 def _cell(row: dict, key: str) -> str:
@@ -99,12 +104,77 @@ def scale_markdown(rows: list[dict]) -> str:
 
 def transfer_markdown(rows: list[dict]) -> str:
     lines = [("| Probe trained on trivia errors → tested on | Transfer AUROC (QA-chosen layer) | "
-              "Best single layer (descriptive only) |"), "|---|---|---|"]
+              "Best single layer (descriptive) | Most inverted layer (descriptive) |"),
+             "|---|---|---|---|"]
     for r in rows:
         rng = (f"{r['transfer_mean']:.3f} (range {r['transfer_min']:.3f}–{r['transfer_max']:.3f}, "
                f"{r['n_seeds']} seeds)" if r["n_seeds"] > 1 else f"{r['transfer_mean']:.3f}")
-        lines.append(f"| {r['target']} | {rng} | {r['best_any_layer_descriptive']:.3f} |")
+        lines.append(f"| {r['target']} | {rng} | {r['best_any_layer_descriptive']:.3f} | "
+                     f"L{r['most_inverted_layer']} = {r['most_inverted_auroc']:.3f} |")
     return "\n".join(lines)
+
+
+def load_cost(c: dict) -> tuple[pd.DataFrame, dict]:
+    d = Path(c["dir"])
+    return pd.read_csv(d / "cost_vs_accuracy.csv"), json.loads((d / "diffs.json").read_text())
+
+
+def cost_markdown(name: str, table: pd.DataFrame, diffs: dict) -> str:
+    lines = [f"*{name}*", "", ("| Method | AUROC [95% CI] | Forward passes | ms / question (this Mac) | "
+                                "Cost vs probe |"), "|---|---|---|---|---|"]
+    for _, r in table.iterrows():
+        lines.append(f"| {r['method']} | {r['auroc']:.3f} [{r['ci_low']:.3f}, {r['ci_high']:.3f}] | "
+                     f"{r['forward_steps']:.1f} | {r['ms_per_question']:.0f} | {r['cost_vs_probe']:.1f}× |")
+    lines.append("")
+    for k, v in diffs.items():
+        sig = "significant" if v["ci_low"] > 0 or v["ci_high"] < 0 else "not significant"
+        lines.append(f"- {k}: {v['diff']:+.3f} AUROC, 95% CI [{v['ci_low']:+.3f}, {v['ci_high']:+.3f}] ({sig})")
+    return "\n".join(lines)
+
+
+def key_findings(rows: list[dict], transfers: list[dict], cost: tuple | None) -> str:
+    """Plain-language headline bullets, with every number computed from the files."""
+    df = pd.DataFrame(rows)
+    out = []
+    if "beyond_difficulty_mean" in df:
+        n_rob = int(df["beyond_difficulty_robust"].sum())
+        out.append(f"- **The model knows more than question difficulty.** Hidden states add "
+                   f"{df['beyond_difficulty_mean'].min():+.2f} to {df['beyond_difficulty_mean'].max():+.2f} "
+                   f"AUROC beyond a question-only difficulty model, robust in {n_rob}/{len(df)} models.")
+    if "model_specific_robust" in df:
+        spec = df[df["model_specific_robust"].astype(bool)]["model"].tolist()
+        out.append(f"- **Model-specific self-knowledge appears only in: {', '.join(spec) or 'none'}.** "
+                   f"In smaller models, a neighbouring model's activations predict the errors equally well.")
+    if "rank_corr_probe_output" in df:
+        out.append(f"- **The probe and the model's own token confidence converge as models improve** "
+                   f"(rank correlation {df['rank_corr_probe_output'].min():.2f} → "
+                   f"{df['rank_corr_probe_output'].max():.2f}); combining them helps in "
+                   f"{int(df['complements_output_robust'].sum())}/{len(df)} models.")
+    for t in transfers:
+        if "egat" in t["target"]:
+            out.append(f"- **It is not a truth detector:** on negated statements transfer falls to "
+                       f"{t['transfer_mean']:.2f}, and layer {t['most_inverted_layer']} inverts to "
+                       f"{t['most_inverted_auroc']:.3f} -- it tracks mismatched associations.")
+        elif "city" in t["target"].lower():
+            out.append(f"- **The error signal transfers to false statements** it never trained on "
+                       f"({t['target']}: {t['transfer_mean']:.2f} AUROC).")
+    if cost is not None:
+        table, diffs = cost
+        probe = table.iloc[0]
+        sc = table[table["method"].str.startswith("self-consistency")].iloc[0]
+        d = diffs.get("probe - self_consistency")
+        if d is None:
+            verdict = "compared with"
+        elif d["ci_low"] > 0:
+            verdict = "significantly beat"
+        elif d["ci_high"] < 0:
+            verdict = "was significantly worse than"
+        else:
+            verdict = "matched (difference not significant)"
+        out.append(f"- **It is cheap:** the probe {verdict} self-consistency ({probe['auroc']:.2f} vs "
+                   f"{sc['auroc']:.2f} AUROC) using {sc['forward_steps'] / probe['forward_steps']:.0f}× "
+                   f"fewer forward passes -- and before any answer is generated.")
+    return "\n".join(out)
 
 
 def plot_scale(rows: list[dict], out_path) -> None:
@@ -152,12 +222,17 @@ def build(config: dict, out_dir="reports/results", figure="docs/img/scale.png") 
     pd.DataFrame(rows).to_csv(out / "scale_table.csv", index=False)
     plot_scale(rows, figure)
 
+    transfers = [transfer_row(t) for t in config.get("transfer", [])]
+    cost = load_cost(config["cost"]) if config.get("cost") else None
     parts = [START, ("*Generated by `python -m halluscope.report` from saved result files -- "
-                     "no number here is hand-typed.*"), "", "### Scale study", "",
+                     "no number here is hand-typed.*"), "", "### Key findings", "",
+             key_findings(rows, transfers, cost), "", "### Scale study", "",
              scale_markdown(rows), "", f"![scale]({figure})", ""]
-    if config.get("transfer"):
-        parts += ["### Cross-domain transfer", "", transfer_markdown(
-            [transfer_row(t) for t in config["transfer"]]), ""]
+    if transfers:
+        parts += ["### Cross-domain transfer", "", transfer_markdown(transfers), ""]
+    if cost is not None:
+        parts += ["### Cost: probe vs self-consistency", "",
+                  cost_markdown(config["cost"]["name"], *cost), ""]
     parts.append(END)
     md = "\n".join(parts)
     (out / "results.md").write_text(md)

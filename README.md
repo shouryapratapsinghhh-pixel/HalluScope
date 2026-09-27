@@ -1,5 +1,7 @@
 # HalluScope
 
+**[Live demo →](https://halluscope-shourya.streamlit.app/)**
+
 **Can a language model know it's about to be wrong — before it answers?**
 
 HalluScope reads a model's internal activations at the moment it finishes reading a

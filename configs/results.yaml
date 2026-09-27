@@ -13,3 +13,7 @@ transfer:
     dirs: [reports/transfer_qwen15_spen]
   - name: "Negated city facts (Qwen2.5-1.5B)"
     dirs: [reports/transfer_qwen15_neg]
+
+cost:
+  name: "Qwen2.5-1.5B, 500 held-out questions, self-consistency with k=10 samples at temperature 0.7"
+  dir: reports/sc_qwen15

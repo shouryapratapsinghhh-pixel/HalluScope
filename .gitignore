@@ -10,3 +10,4 @@ reports/runs/
 *.pt
 *.npz
 .DS_Store
+artifacts/

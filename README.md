@@ -107,6 +107,35 @@ python -m halluscope.report --config configs/results.yaml --readme README.md
 On Apple Silicon, models load in half precision automatically. All model runs are cached,
 so every analysis step reruns in minutes without touching the model.
 
+## Serving it
+
+```bash
+python -m halluscope.export --model Qwen/Qwen2.5-1.5B --qa-cache cache/qwen15_tqa3k.npz --out artifacts/qwen15_probe
+ARTIFACT_DIR=artifacts/qwen15_probe python -m uvicorn halluscope.serve:app --port 8000
+```
+
+| Endpoint | What it does |
+|---|---|
+| `POST /assess` `{"question": ...}` | Risk score from the question alone. **No answer is generated.** |
+| `POST /answer` `{"question": ..., "abstain_above": 0.8}` | Risk first; above the threshold it abstains **without generating**, otherwise it answers, reusing the same forward pass, so the probe adds no extra model work. |
+| `GET /info`, `GET /health` | Model, probe layer, held-out AUROC estimate; liveness |
+
+Interactive docs at `http://127.0.0.1:8000/docs` while the server runs.
+
+## Demo
+
+`demo/streamlit_app.py` shows held-out predictions for every question: an **abstention
+simulator** (skip the riskiest X% of questions and see accuracy rise), a searchable table of
+questions, answers and risk scores, and the research results.
+
+```bash
+python -m halluscope.demo_data --cache cache/qwen15_tqa3k.npz --data data/raw/triviaqa3k.jsonl \
+    --name "Qwen2.5-1.5B" --out reports/demo/qwen15.csv
+streamlit run demo/streamlit_app.py
+```
+The demo runs from these precomputed predictions, not a live model: free hosting can't hold a
+1.5B-parameter model. It has its own `demo/requirements.txt`, so hosting never installs PyTorch.
+
 ## Project layout
 
 ```
@@ -123,6 +152,10 @@ src/halluscope/
   transfer.py           trivia-error probe tested on true/false statements
   selfconsistency.py    self-consistency baseline + cost benchmark
   report.py             generates the Results section and figure
+  export.py             trains + saves the deployable probe artifact
+  serve.py              FastAPI service: /assess, /answer
+  demo_data.py          held-out per-question predictions for the demo
+demo/streamlit_app.py   the demo app (pandas + streamlit only)
 ```
 
 ## Limitations

@@ -87,6 +87,23 @@ class LinearProbe:
 L2_GRID = (1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0, 1000.0)
 
 
+def save_probe(probe: LinearProbe, path) -> None:
+    """Everything needed to score new activations: weights, bias, and the
+    TRAIN standardization statistics."""
+    if probe.w_ is None:
+        raise RuntimeError("fit the probe before saving it")
+    np.savez(path, w=probe.w_.numpy(), b=probe.b_.numpy(), mean=probe.mean_, std=probe.std_,
+             l2=np.array(probe.l2))
+
+
+def load_probe(path) -> LinearProbe:
+    d = np.load(path)
+    probe = LinearProbe(l2=float(d["l2"]))
+    probe.w_, probe.b_ = torch.as_tensor(d["w"]), torch.as_tensor(d["b"])
+    probe.mean_, probe.std_ = d["mean"], d["std"]
+    return probe
+
+
 def select_l2(X: np.ndarray, y: np.ndarray, grid=L2_GRID, val_frac=0.25, seed=0):
     """Pick L2 strength on a validation slice OF TRAIN by AUROC. Test data
     never touches this function."""

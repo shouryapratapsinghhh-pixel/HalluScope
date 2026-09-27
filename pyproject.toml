@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "halluscope"
 version = "0.1.0"
 requires-python = ">=3.10"
-dependencies = ["numpy", "pandas", "scikit-learn", "torch", "transformers", "pyyaml"]
+dependencies = ["numpy", "pandas", "scikit-learn", "torch", "transformers", "pyyaml", "matplotlib"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

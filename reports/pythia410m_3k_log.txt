@@ -1,0 +1,23 @@
+seed 0: layer 15, probe AUROC 0.715
+seed 1: layer 14, probe AUROC 0.753
+seed 2: layer 24, probe AUROC 0.714
+seed 3: layer 17, probe AUROC 0.772
+seed 4: layer 16, probe AUROC 0.751
+ seed  best_layer  probe_auroc   best_baseline
+    0          15        0.715    mean_entropy
+    1          14        0.753 neg_min_logprob
+    2          24        0.714 neg_min_logprob
+    3          17        0.772 neg_min_logprob
+    4          16        0.751 neg_min_logprob
+
+                              comparison  mean_diff  std_diff  min_diff significant_seeds  robust
+probe vs best output-confidence baseline      0.128     0.025     0.101               5/5    True
+      probe vs question-features control      0.127     0.042     0.079               5/5    True
+activations+questions vs questions alone      0.121     0.029     0.090               5/5    True
+      probe vs other model's activations     -0.010     0.014    -0.023               0/5   False
+            probe+output vs output alone      0.145     0.023     0.113               5/5    True
+             probe+output vs probe alone     -0.002     0.008    -0.012               0/5   False
+
+rank correlation probe vs output confidence: 0.20 (mean over seeds)
+layers chosen across seeds: [14, 15, 16, 17, 24]  (spread 10)
+wrote reports/pythia410m_3k/robustness.csv

@@ -1,0 +1,30 @@
+{
+  "best_layer": 19,
+  "n_layers": 24,
+  "model_accuracy": 0.19299999999999995,
+  "n_test": 300,
+  "n_test_correct": 58,
+  "best_baseline": "neg_min_logprob",
+  "probe_minus_best_baseline_auroc": 0.04880307779994297,
+  "diff_ci_low": -0.02900143412616713,
+  "diff_ci_high": 0.12420116129951554,
+  "significant": false,
+  "probe_vs_question_control": {
+    "diff": 0.1410658307210031,
+    "ci_low": 0.06099736170212768,
+    "ci_high": 0.22173963212334113,
+    "significant": true
+  },
+  "activations_add_beyond_questions": {
+    "diff": 0.140424622399544,
+    "ci_low": 0.0617246766130695,
+    "ci_high": 0.21926901150801037,
+    "significant": true
+  },
+  "probe_vs_other_model_control": {
+    "diff": 0.07844115132516383,
+    "ci_low": 0.014386939326904559,
+    "ci_high": 0.14457419429070778,
+    "significant": true
+  }
+}

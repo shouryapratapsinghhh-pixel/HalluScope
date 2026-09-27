@@ -1,0 +1,15 @@
+# Inputs for `python -m halluscope.report`. Paths match the commands run so far.
+models:
+  - {name: Pythia-410M, family: Pythia, params_m: 410, report: reports/pythia410m_3k, cache: cache/pythia410m_tqa3k.npz}
+  - {name: Pythia-1B, family: Pythia, params_m: 1000, report: reports/pythia1b_3k, cache: cache/pythia1b_tqa3k.npz}
+  - {name: Pythia-1.4B, family: Pythia, params_m: 1400, report: reports/pythia14b_3k, cache: cache/pythia14b_tqa3k.npz}
+  - {name: Qwen2.5-0.5B, family: Qwen2.5, params_m: 500, report: reports/qwen05_3k, cache: cache/qwen05_tqa3k.npz}
+  - {name: Qwen2.5-1.5B, family: Qwen2.5, params_m: 1500, report: reports/qwen15_3k, cache: cache/qwen15_tqa3k.npz}
+
+transfer:
+  - name: "True/false city facts (Qwen2.5-1.5B)"
+    dirs: [reports/transfer_qwen15, reports/transfer_qwen15_s1, reports/transfer_qwen15_s2, reports/transfer_qwen15_s3, reports/transfer_qwen15_s4]
+  - name: "Spanish-English translations (Qwen2.5-1.5B)"
+    dirs: [reports/transfer_qwen15_spen]
+  - name: "Negated city facts (Qwen2.5-1.5B)"
+    dirs: [reports/transfer_qwen15_neg]

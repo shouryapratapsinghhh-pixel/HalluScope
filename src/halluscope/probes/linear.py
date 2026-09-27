@@ -82,7 +82,12 @@ class LinearProbe:
         return self.w_.numpy().copy()
 
 
-def select_l2(X: np.ndarray, y: np.ndarray, grid=(1e-3, 1e-2, 1e-1, 1.0), val_frac=0.25, seed=0):
+# Wide grid: Phase 0's first real run picked 1.0, the old maximum -- a sign
+# the probe wanted MORE regularization than it was allowed.
+L2_GRID = (1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0, 1000.0)
+
+
+def select_l2(X: np.ndarray, y: np.ndarray, grid=L2_GRID, val_frac=0.25, seed=0):
     """Pick L2 strength on a validation slice OF TRAIN by AUROC. Test data
     never touches this function."""
     from halluscope.eval.metrics import auroc

@@ -75,16 +75,36 @@ def get_device() -> torch.device:
     return torch.device("cpu")
 
 
-def load_model(name: str, device: torch.device | None = None):
+DTYPES = {"float32": torch.float32, "float16": torch.float16, "bfloat16": torch.bfloat16}
+
+
+def resolve_dtype(dtype: str, device: torch.device) -> torch.dtype:
+    """'auto' = float16 on GPU / Apple Silicon, float32 on CPU (where half
+    precision is slow or unsupported)."""
+    if dtype == "auto":
+        return torch.float16 if device.type in ("cuda", "mps") else torch.float32
+    if dtype not in DTYPES:
+        raise ValueError(f"dtype must be 'auto' or one of {list(DTYPES)}, got {dtype!r}")
+    return DTYPES[dtype]
+
+
+def load_model(name: str, device: torch.device | None = None, dtype: str = "auto"):
     """Load a real Hugging Face causal LM, e.g. "EleutherAI/pythia-410m",
     "Qwen/Qwen2.5-0.5B", "meta-llama/Llama-3.2-1B". Needs network the first
     time (weights are cached by Hugging Face afterwards).
+
+    dtype="float16" halves memory (1.5B params: ~6 GB -> ~3 GB) and is much
+    faster on Apple Silicon (MPS), where float32 can push an 8-16 GB Mac
+    into swap. Hidden states are always converted back to float32 before
+    probing, so probes and metrics are unaffected by the load precision.
     """
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     device = device or get_device()
+    torch_dtype = resolve_dtype(dtype, device)
+    logger.info("loading %s on %s as %s", name, device, torch_dtype)
     hf_tok = AutoTokenizer.from_pretrained(name)
-    model = AutoModelForCausalLM.from_pretrained(name, torch_dtype=torch.float32)
+    model = AutoModelForCausalLM.from_pretrained(name, torch_dtype=torch_dtype)
     model.to(device).eval()
     return model, HFTokenizer(hf_tok)
 

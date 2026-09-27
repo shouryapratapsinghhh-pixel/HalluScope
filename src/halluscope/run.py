@@ -65,6 +65,8 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--layer", type=int, default=None, help="default: middle layer")
     parser.add_argument("--max-new-tokens", type=int, default=16)
+    parser.add_argument("--dtype", default="auto", choices=["auto", "float32", "float16", "bfloat16"],
+                        help="auto = float16 on Apple Silicon/GPU (half the memory), float32 on CPU")
     parser.add_argument("--cache", default=None, help="npz path to save/load activations")
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
@@ -73,7 +75,7 @@ def main() -> None:
         logger.info("loading cached activations from %s", args.cache)
         collected = load_collected(args.cache)
     else:
-        model, tok = tiny_random_model() if args.model == "tiny" else load_model(args.model)
+        model, tok = tiny_random_model() if args.model == "tiny" else load_model(args.model, dtype=args.dtype)
         items = make_toy_qa() if args.data == "toy" else load_qa_jsonl(args.data, limit=args.limit)
         logger.info("running %s on %d questions", args.model, len(items))
         collected = collect_qa(model, tok, items, max_new_tokens=args.max_new_tokens)

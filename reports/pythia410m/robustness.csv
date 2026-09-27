@@ -1,0 +1,5 @@
+comparison,mean_diff,std_diff,min_diff,significant_seeds,robust
+probe vs best output-confidence baseline,0.03779301194161879,0.0699024233308039,-0.06015037593984962,0/5,False
+probe vs question-features control,0.08400044228217604,0.04127967675557009,0.035603715170278605,1/5,False
+activations+questions vs questions alone,0.08492923485183548,0.039060157794050136,0.039363113666519234,1/5,False
+probe vs other model's activations,0.04039141972578508,0.05624745418181153,-0.04566563467492257,1/5,False

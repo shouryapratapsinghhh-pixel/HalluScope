@@ -97,7 +97,9 @@ def test_probe_single_class_raises():
 
 def test_select_l2_returns_grid_value():
     X, y = _separable()
-    assert select_l2(X, y) in (1e-3, 1e-2, 1e-1, 1.0)
+    from halluscope.probes.linear import L2_GRID
+
+    assert select_l2(X, y) in L2_GRID
 
 
 # -- baselines -------------------------------------------------------------------
@@ -196,3 +198,31 @@ def test_evaluate_probe_beats_baselines_on_planted_signal():
     # and the signal is layer-specific: probing a different layer finds ~nothing
     other = evaluate(Collected(hidden, y, ["x"] * n, runs), layer=4)
     assert other.loc["linear_probe@L4", "auroc"] < 0.65
+
+
+# -- precision ------------------------------------------------------------------
+
+
+def test_resolve_dtype():
+    import torch
+
+    from halluscope.models.lm import resolve_dtype
+
+    assert resolve_dtype("auto", torch.device("mps")) == torch.float16
+    assert resolve_dtype("auto", torch.device("cpu")) == torch.float32
+    assert resolve_dtype("bfloat16", torch.device("cpu")) == torch.bfloat16
+    with pytest.raises(ValueError, match="dtype"):
+        resolve_dtype("int8", torch.device("cpu"))
+
+
+@pytest.mark.slow
+def test_half_precision_model_still_saves_float32_hidden():
+    """Caches must be comparable whatever precision the model ran in."""
+    import torch
+
+    model, tok = tiny_random_model(seed=0)
+    model = model.to(torch.bfloat16)
+    r = run_prompt(model, tok, "Question: Hi?\nAnswer:", max_new_tokens=4)
+    assert r.hidden.dtype == np.float32
+    assert np.isfinite(r.hidden).all()
+    assert all(np.isfinite(r.token_logprobs))

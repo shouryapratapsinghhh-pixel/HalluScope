@@ -6,3 +6,4 @@ transformers
 pyyaml
 pytest>=8.0
 ruff>=0.9,<1.0
+matplotlib

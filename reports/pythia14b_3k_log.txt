@@ -1,0 +1,23 @@
+seed 0: layer 16, probe AUROC 0.759
+seed 1: layer 15, probe AUROC 0.761
+seed 2: layer 22, probe AUROC 0.775
+seed 3: layer 16, probe AUROC 0.744
+seed 4: layer 13, probe AUROC 0.770
+ seed  best_layer  probe_auroc   best_baseline
+    0          16        0.759 neg_min_logprob
+    1          15        0.761 neg_min_logprob
+    2          22        0.775 neg_min_logprob
+    3          16        0.744 neg_min_logprob
+    4          13        0.770 neg_min_logprob
+
+                              comparison  mean_diff  std_diff  min_diff significant_seeds  robust
+probe vs best output-confidence baseline      0.051     0.022     0.019               3/5    True
+      probe vs question-features control      0.173     0.011     0.160               5/5    True
+activations+questions vs questions alone      0.162     0.015     0.139               5/5    True
+      probe vs other model's activations      0.043     0.009     0.031               4/5    True
+            probe+output vs output alone      0.066     0.015     0.045               5/5    True
+             probe+output vs probe alone      0.016     0.012     0.002               3/5    True
+
+rank correlation probe vs output confidence: 0.38 (mean over seeds)
+layers chosen across seeds: [13, 15, 16, 16, 22]  (spread 9)
+wrote reports/pythia14b_3k/robustness.csv

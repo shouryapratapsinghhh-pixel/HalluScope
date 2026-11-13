@@ -7,7 +7,7 @@ Convention everywhere: **label 1 = the model's answer was wrong**, and every sco
 |---|---|---|
 | **AUROC** | Pick one wrong and one right answer at random: how often does the risk score rank the wrong one higher? | 0.5 = coin flip, 1.0 = perfect |
 | **ΔAUROC** | How much one scorer beats another on the same questions | > 0, with a CI that excludes 0 |
-| **Bootstrap 95% CI** | How much would this number move with a different sample of test questions? (1,000 resamples) | Narrow, and away from 0.5 / 0 |
+| **Bootstrap 95% CI** | How much would this number move with a different sample of test questions? (1,000 resamples in `analyze` and `selfconsistency`; 500 in `robustness` and `transfer`) | Narrow, and away from 0.5 / 0 |
 | **Paired bootstrap** | Is scorer A *really* better than B? Both are scored on the same resamples, so per-question difficulty cancels out | CI excludes 0 → significant |
 | **Significant seeds (e.g. 5/5)** | Did the result hold on how many of 5 different train/test splits? Covers noise the bootstrap can't: which questions landed in training | ≥ 3/5 **and** positive mean → "robust" |
 | **Rank correlation** | Do the probe and the model's token confidence flag the *same* questions? | Near 1 = redundant; low = complementary |
